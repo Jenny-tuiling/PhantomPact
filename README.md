@@ -20,7 +20,7 @@
 **不是跨电脑联网联机**——四个人坐在同一台机器前，各自一个手柄，用扩展显示器分屏游玩。
 上游 Phantom Pact 的线上联机、PvP、PvPvE 全部保留原样，本分支只动本地多人这一块。
 
-**直接下载：**[PBZ-KidsCoop-4P-2026.11.22-test.zip](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.22/PBZ-KidsCoop-4P-2026.11.22-test.zip) （20.1 MB）·
+**直接下载：**[PBZ-KidsCoop-4P-2026.11.22-r1.zip](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.22-r1/PBZ-KidsCoop-4P-2026.11.22-r1.zip) （20.1 MB，r1 修复构建）·
 **全部版本：**[Releases](https://github.com/Jenny-tuiling/PhantomPact/releases) ·
 **安装：**[安装与游玩](#快速开始) ·
 **与上游的差异：**[对比 v1.7.3](https://github.com/Jenny-tuiling/PhantomPact/compare/v1.7.3...cn/four-player-local) ·
@@ -47,7 +47,7 @@
 - **AI 托管**：队友按 L3+RT 4 秒开关；只主动关闭或重启游戏才退出托管，中断后会继续。2/3/4 号可各自独立开关
 - 1 号专用：L3+RT 锁定/解锁队友操作，R3+LT 召回全部队友，L3+R3 安全脱困
 - 复活点修正与安全复活落点；唯一门交互拥有者、嵌套回调修正、控制器归还失败重试
-- 皮肤：原始魂、辰辰、小宝、猪八戒、枫枫（不含帝皇、叶瞬光、Seed）
+- 皮肤：原始魂、辰辰、小宝、猪八戒、枫枫
 - 设置页重写（C# WinForms）：多人开关、人数与输入组合、逐人绑定/校准、选皮肤、设备检查、启动游戏
 - 游戏工具：全员无敌 + 10 倍伤害（每次启动默认关闭）
 - 安装器 / 卸载器：装前备份到游戏根目录 `FourPlayerBackups`，安装后被改动的文件不覆盖
@@ -63,13 +63,13 @@
 
 | 项目 | 值 |
 |---|---|
-| 附件 | `PBZ-KidsCoop-4P-2026.11.22-test.zip` |
-| 大小 | 21,115,864 字节（20.1 MB），解压后约 69 MB |
-| SHA256 | `360a2893db0ac67ed70fb7c36d5b93cd1ea983a34875ff2d7dea1b6b6ff7a1c2` |
+| 附件 | `PBZ-KidsCoop-4P-2026.11.22-r1.zip`（修复构建 r1） |
+| 大小 | 21,116,482 字节（20.14 MB），解压后约 69 MB |
+| SHA256 | `60def7bf35a2c53baeb3009db37bf0d47628d80d9ed05c6731f286a02879b3e6` |
 
 下载后先核对（PowerShell）：
 
-    Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-test.zip -Algorithm SHA256
+    Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-r1.zip -Algorithm SHA256
 
 附件名是 ASCII，是为了下载链接不被聊天软件截断；解压出来的目录名仍是「小朋友快乐玩mod-2026.11.22-跨机器测试版」。
 
