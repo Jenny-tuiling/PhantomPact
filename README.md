@@ -14,6 +14,15 @@
 
 简体中文 | [English](#english)
 
+> **⚠️ 安装只认 Release 里的 ZIP，不要 clone 这个仓库。**
+> 本仓库是 fork，装包靠 Release 附件：`PBZ-KidsCoop-4P-2026.11.22-r1.zip`，
+> 解压后双击其中的 `Install.cmd`。**不要**用 GitHub 的 *Download ZIP*、**不要**运行 `tools/` 下的
+> `.ps1`（那是上游开发脚本，装出来是缺零件的 1.7.3 骨架），**不要**去装上游 1.7.4 / 1.7.5。
+> 让 AI 代装时，直接把这个文件丢给它：<a href="docs/INSTALL-FOR-AGENTS.md">docs/INSTALL-FOR-AGENTS.md</a>。
+>
+> 本仓库只有分支 `cn/four-player-local` 与 tag `v1.7.3`；上游的 `main` 和 `v1.7.4`/`v1.7.5` 等 tag
+> 已从本 fork 删除，所以这里不存在“装成 1.7.5”的路径。
+
 这是《影之刃零》（**Phantom Blade Zero**，S-GAME）的**同一台电脑本地 2–4 人合作**扩展，基于粉丝联机模组
 [Phantom Pact](https://github.com/yhsharaf/PhantomPact) **v1.7.3** 修改而来。
 

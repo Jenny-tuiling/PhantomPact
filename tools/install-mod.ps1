@@ -1,3 +1,15 @@
+# ==============================================================================
+# 本仓库（小朋友快乐玩mod · 本地 2–4 人）请不要运行这个脚本。
+#
+# 它属于上游 Phantom Pact，只把 mod/ 里的 Lua/INI 拷进 UE4SS，不带 4 人设备设置页、
+# BaseVersions 两套底座、payload 依赖和卸载器。照它装出来会是一个缺零件的 1.7.3 骨架。
+#
+# 正确安装：下载 Release 附件 PBZ-KidsCoop-4P-2026.11.22-r1.zip，
+# 校验 SHA256 = 60def7bf35a2c53baeb3009db37bf0d47628d80d9ed05c6731f286a02879b3e6，
+# 解压后双击 Install.cmd 选游戏根目录。
+# 本仓库只有分支 cn/four-player-local 与 tag v1.7.3；上游 main 与 v1.7.4/v1.7.5 tag
+# 已删除，因此这里不存在“装上 1.7.5”的路径。
+# ==============================================================================
 <#
 .SYNOPSIS
     Copies the PBZCoop mod into a game's UE4SS Mods folder.
