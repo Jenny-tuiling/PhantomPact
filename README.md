@@ -138,7 +138,7 @@
 
 > **哪些文件不是本分支的：** `INSTALL.md`、`INSTALL.zh-CN.md`、`main` 分支、`v1.x` 系列 tag，以及 `docs/` 里
 > 除 `RELEASE-cn-2026.11.22.md`、`UPSTREAM-OUTREACH.md` 之外的文档，都是上游原件，讲的是**线上联机 / PvP**。
-> 本地多人的安装、按键与排障，一律以本页为准。About 面板里的 Website 指向本仓库的 Release，不是上游的 Nexus 页。
+> 本地多人的安装、按键与排障，一律以本页为准。
 
 ## 致谢
 
