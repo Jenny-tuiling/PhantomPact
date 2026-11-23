@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="art/cn-mod-banner.png" alt="小朋友快乐玩mod：《影之刃零》本地 2–4 人合作" width="100%">
+</p>
+
 # 小朋友快乐玩mod：《影之刃零》本地 2–4 人合作
 
 <p>
@@ -16,7 +20,8 @@
 **不是跨电脑联网联机**——四个人坐在同一台机器前，各自一个手柄，用扩展显示器分屏游玩。
 上游 Phantom Pact 的线上联机、PvP、PvPvE 全部保留原样，本分支只动本地多人这一块。
 
-**下载：**[最新版本](https://github.com/Jenny-tuiling/PhantomPact/releases) ·
+**直接下载：**[PBZ-KidsCoop-4P-2026.11.22-test.zip](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.22/PBZ-KidsCoop-4P-2026.11.22-test.zip) （20.1 MB）·
+**全部版本：**[Releases](https://github.com/Jenny-tuiling/PhantomPact/releases) ·
 **安装：**[安装与游玩](#快速开始) ·
 **与上游的差异：**[对比 v1.7.3](https://github.com/Jenny-tuiling/PhantomPact/compare/v1.7.3...cn/four-player-local) ·
 **上游项目：**[yhsharaf/PhantomPact](https://github.com/yhsharaf/PhantomPact)
@@ -53,6 +58,20 @@
 - PvP 决斗 / 死斗 / PvPvE（F6）
 - 游戏中 F5 联机面板、F4 分屏面板
 - 中文 / English / العربية 三语界面
+
+## 下载与校验
+
+| 项目 | 值 |
+|---|---|
+| 附件 | `PBZ-KidsCoop-4P-2026.11.22-test.zip` |
+| 大小 | 21,115,864 字节（20.1 MB），解压后约 69 MB |
+| SHA256 | `360a2893db0ac67ed70fb7c36d5b93cd1ea983a34875ff2d7dea1b6b6ff7a1c2` |
+
+下载后先核对（PowerShell）：
+
+    Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-test.zip -Algorithm SHA256
+
+附件名是 ASCII，是为了下载链接不被聊天软件截断；解压出来的目录名仍是「小朋友快乐玩mod-2026.11.22-跨机器测试版」。
 
 ## 快速开始
 

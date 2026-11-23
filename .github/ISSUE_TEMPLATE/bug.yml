@@ -1,0 +1,81 @@
+name: 报问题 / Bug report
+description: 本地多人出问题时用这个。报之前先看 README 的「已知问题」，避免重复。
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先说三件已经知道的事，报的时候请避开：
+        - 穿行地图在多人下仍有光标/选点问题（未修复）
+        - 庞镇切图未实测通过
+        - 猪八戒、枫枫的全动作与场景尚未验收
+
+        日志在游戏目录的 `ProjectPBZ/Saved/Logs`，取最新的那个。
+  - type: input
+    id: build
+    attributes:
+      label: 游戏版本 / Steam build
+      placeholder: "26367565"
+    validations:
+      required: true
+  - type: dropdown
+    id: base
+    attributes:
+      label: 底座
+      options:
+        - local（本地测试版，默认安装的就是这个）
+        - stable（稳定版 1.7.3 ＋ 现有补丁）
+    validations:
+      required: true
+  - type: dropdown
+    id: players
+    attributes:
+      label: 人数
+      options:
+        - 2 人
+        - 3 人
+        - 4 人
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: 输入组合
+      options:
+        - 全部手柄
+        - 键鼠 + 手柄
+        - 混合（请在下文说明）
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 现象
+      description: 在哪个场景、哪一步、看到了什么。有没有报错弹窗或卡死。
+      placeholder: 例：第 3 人按 A 加入后，第 2 人的镜头会跳到 1 号身上。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 设置页选 4 人、全手柄
+        2. 依次加入 1/2/3/4
+        3. 进存档后走到钟旁
+        4. ...
+  - type: textarea
+    id: extra
+    attributes:
+      label: 日志 / 截图 / 视频
+      description: 日志直接拖进来；截图和视频贴链接也行。
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我已经看过 README 的「已知问题」和「版本与兼容」
+          required: true
+        - label: 我用的是同一个完整解压目录装的，没有和其它版本的多人模组混装
+          required: true
