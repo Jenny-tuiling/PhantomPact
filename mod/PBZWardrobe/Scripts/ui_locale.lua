@@ -28,7 +28,7 @@ function M.profileName(p)
  local value=names[M.language]or ui['name_'..M.language]
  if type(value)=='string'and #value>0 then return value end
  if M.language=='en'then
-  local known={seed='Seed',yeshunguang='Ye Shunguang',miyabi_base='Hoshimi Miyabi',miyabi_native='Hoshimi Miyabi'}
+  local known={miyabi_base='Hoshimi Miyabi',miyabi_native='Hoshimi Miyabi'}
   if known[p.id]then return known[p.id]end
  end
  return p.name:gsub('（PBZ原生动作）',''):gsub('%(PBZ native animations%)','')
