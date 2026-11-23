@@ -6,7 +6,9 @@
 //   vp.txt         written by the mod: the GameViewportClient's address, then the setting's. Removed once taken
 //   pad_stay.txt   written by the mod: the input device on player 1 (absent: no routing, the setting is left alone)
 #pragma once
-#include "relay.hpp"
+#include "local_io.hpp"
+#include "four_route.hpp"
+#include "party_input.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -41,6 +43,8 @@ bool is_mover(const BYTE* args) {
 }
 
 ULONG_PTR call(Input real, void* self, BYTE* args, void* a3, void* a4) {
+    ULONG_PTR routed=0;
+    if(fourroute::dispatch(real,self,args,a3,a4,&routed)) return routed;
     if (!is_mover(args)) return real(self, args, a3, a4);
     *offset_setting = 1;
     const ULONG_PTR result = real(self, args, a3, a4);
@@ -94,7 +98,7 @@ void drop_raw_gamepads(const std::wstring& log) {
         if (devices[i].usUsagePage != GENERIC_PAGE || (usage != JOYSTICK && usage != GAMEPAD && usage != MULTI_AXIS)) continue;
         RAWINPUTDEVICE remove{GENERIC_PAGE, usage, RIDEV_REMOVE, nullptr};
         const BOOL ok = RegisterRawInputDevices(&remove, 1, sizeof remove);
-        relay::append_lines(log, {"raw usage " + std::to_string(usage) + (ok ? " removed" : " NOT removed, error " + std::to_string(GetLastError()))});
+        localio::append_lines(log, {"raw usage " + std::to_string(usage) + (ok ? " removed" : " NOT removed, error " + std::to_string(GetLastError()))});
     }
 }
 
@@ -128,6 +132,9 @@ DWORD WINAPI watch(void* dir_) {
     while (true) {
         Sleep(POLL_MS);
         stay = read_stay(stay_file);
+        fourroute::read(dir + L"\\four_route.txt");
+        partyinput::poll(dir);
+        fourroute::stats(dir + L"\\four_route_stats.txt");
         if (xinput_pads > 0) drop_raw_gamepads(log);
     }
 }

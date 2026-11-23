@@ -10,7 +10,7 @@
 
 return function(api)
     local log, valid = api.log, api.valid
-    local coop = api.coop
+    local coop = {net={},partners=function()return {}end}
     local net = coop.net
 
     -- From a sky-painting plugin: only some levels load it (the prologue does, the valley after it doesn't, and the
@@ -321,25 +321,6 @@ return function(api)
         end
         setShown(true)
     end
-
-    coop.extraTicks.hud = function()
-        if not net.party and #extraDots > 0 then
-            removeExtraDots()
-        end
-        local ok, err = pcall(net.party and updateParty or update)
-        if not ok and err ~= hud.lastError then
-            hud.lastError = err
-            log("compass: " .. tostring(err))
-        end
-    end
-
-    -- Sync off (netoff): coop.lua stops calling extraTicks, so the widgets are cleared from a loop of their own.
-    LoopInGameThreadWithDelay(1000, function()
-        if not net.enabled and (lineWidget or dotWidget) then
-            remove()
-        end
-        return false
-    end)
 
     -- The compass is gone (1.6.6, the user: "remove the map compass, since i don't like the way it stretches or grow in
     -- size"): always off, whatever the ini, the host's rules or the "hud" command say. The partner on the game's map

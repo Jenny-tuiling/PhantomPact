@@ -5,6 +5,9 @@
 return function(api)
     local log, valid, getPlayer1, distance = api.log, api.valid, api.getPlayer1, api.distance
     local game, state = api.game, api.state
+    -- Four-player mode instantiates this ORIGINAL partner implementation per guest.
+    -- Input/device ownership stays with the existing external setup and native router.
+    local party, slot = api.party, api.partySlot
 
     local TICK_MS = 1000
     local RESPAWN_S = 6             -- player 2 comes back beside player 1 this long after going down
@@ -98,6 +101,11 @@ return function(api)
                     return nil
                 end
                 local name = w:GetClass():GetFName():ToString()
+                -- PBZ can leave a finished dialogue Activated/Visible after removing
+                -- it from the UI tree. Such an orphan must not hold the whole party.
+                if name == "WBP_FlowDialog_C" and not w:IsInViewport() and not valid(w:GetParent()) then
+                    return nil
+                end
                 V.onBoat = V.onBoat or name == "W_ShipHudLayout_C"
                 -- Tutorial hint bars (W_TutorialBar_Hint_*) are passive overlays, not pages: they hold nobody.
                 return (not ALWAYS_ON_SCREENS[name] and not name:find("^W_TutorialBar_")) and name or nil
@@ -139,11 +147,13 @@ return function(api)
     V.screensWant, V.screensSaid = nil, nil
 
     function V.spread()
+        if party then return true end
         return V.mon ~= nil and V.mon.state == "two"
     end
 
     -- The engine's split: the monitors' own while spread (side by side or one above the other), else the panel's.
     function V.layout()
+        if party then return "lr" end
         if V.spread() and (V.mon.split == "lr" or V.mon.split == "tb") then
             return V.mon.split
         end
@@ -152,6 +162,7 @@ return function(api)
 
     -- One view over the whole window: single player, or a menu or a scene on one monitor.
     function V.fullWidth()
+        if party then return false end
         return paused or ((menuOpen or inScene) and not V.spread())
     end
 
@@ -308,11 +319,13 @@ return function(api)
     local function besidePoint(p1, up)
         local q = p1:K2_GetActorLocation()
         local yaw = math.rad(p1:K2_GetActorRotation().Yaw) + math.pi / 2
+        if party then yaw = yaw + (slot - 2) * math.pi * 2 / ((party.count or 4) - 1) end
         return { X = q.X + math.cos(yaw) * BESIDE_CM, Y = q.Y + math.sin(yaw) * BESIDE_CM, Z = q.Z + up }
     end
     local function moveBeside(pawn, p1)
         local far = distance(pawn:K2_GetActorLocation(), p1:K2_GetActorLocation()) > V.FAR_MOVE_CM
-        pawn:K2_SetActorLocation(besidePoint(p1, far and 120 or 30), false, {}, true)
+        local moved=pawn:K2_SetActorLocation(besidePoint(p1, far and 120 or 30), false, {}, true)
+        if moved~=true then return false end
         if far then
             pcall(function() pawn.CharacterMovement:SetMovementMode(5, 0) end)
             -- The world streams in around player 1: the Soul is set down once player 1 stands on the ground again
@@ -335,6 +348,7 @@ return function(api)
             end
             game.after(V.FAR_MOVE_HOLD_S, tryLand)
         end
+        return true
     end
 
     -- Player 1 can be moved a long way at once: a bell's fast travel, a door that leads somewhere else, a scene, a
@@ -466,6 +480,7 @@ return function(api)
         if V.layout() == "lr" then
             x, y, w, h = vw * 0.75, vh * 0.5, vw * 0.5, vh
         end
+        if party then w, h = vw / (party.count or 4), vh; x, y = (slot - 0.5) * w, vh / 2 end
         local size = math.min(h, w * 0.55)      -- (what the parts are measured against: a tall half is no reason to spill over the line)
         V.deathCard = {}
         for i, part in ipairs(V.DEATH_PARTS) do
@@ -626,6 +641,55 @@ return function(api)
 
     -- The game only wakes the enemies around player 1, so a player 2 exploring alone would find an empty world. Wake
     -- the spawners around them too. Each one once: what they kill stays dead, as for player 1.
+    -- Scripted encounter spawners may have ShouldSpawn=true while InitialSpawn=false.
+    -- ClaimSeqSpawn bypasses the encounter's phase trigger: never call it for those.
+    function V.mayWakeSpawner(s)
+        local ok, initial = pcall(function() return s.InitialSpawn end)
+        return ok and initial == true
+    end
+    -- Codex lookup misses some encounter actors (observed: YuCong base form).
+    -- Use their actual spawners as well. Match names too, since UE reuses addresses.
+    function V.refreshEncounterActors()
+        local now = os.clock()
+        if V.encounterScanAt and now >= V.encounterScanAt and now - V.encounterScanAt < 0.5 then return end
+        V.encounterScanAt, V.encounterActors, V.encounterScanOK = now, {}, false
+        local ok = pcall(function()
+            for _, s in ipairs(FindAllOf("AISpawner") or {}) do
+                if not V.mayWakeSpawner(s) and valid(s.SpawnedAI) then
+                    local a = s.SpawnedAI
+                    V.encounterActors[a:GetAddress()] = a:GetFullName()
+                end
+            end
+        end)
+        V.encounterScanOK = ok
+    end
+    function V.isEncounterActor(actor)
+        if not valid(actor) then return false end
+        V.refreshEncounterActors()
+        if not V.encounterScanOK then return true end -- don't force AI when classification failed
+        return V.encounterActors[actor:GetAddress()] == actor:GetFullName() or game.isBoss(actor) == true
+    end
+    function V.domainHasEncounter(d)
+        local found = false
+        local ok = pcall(function()
+            d.ActorsInMobDomain:ForEach(function(_, el)
+                if V.isEncounterActor(el:get()) then found = true end
+            end)
+        end)
+        return not ok or found
+    end
+    -- A boss's phase visibility and activation belong to the game, not proximity to a guest.
+    function V.mayHelpCombat(actor)
+        if not valid(actor) or game.isDead(actor) then return false end
+        local ok, hidden = pcall(function() return actor.bHidden end)
+        if not ok or hidden == true then return false end
+        if V.isEncounterActor(actor) then
+            if not game.bossAt(actor:GetAddress(), actor) then return false end
+            local visible, shown = pcall(function() return valid(actor.Mesh) and actor.Mesh:IsVisible() end)
+            if not visible or not shown then return false end
+        end
+        return true
+    end
     local function wakeEnemies(p1, p2)
         if os.clock() < nextWake then
             return
@@ -651,7 +715,7 @@ return function(api)
                 local name = s:GetFName():ToString()
                 if not woken[name] and distance(s:K2_GetActorLocation(), here) <= WAKE_CM then
                     woken[name] = true
-                    if s:IsShouldToSpawn() and not valid(s.SpawnedAI) then
+                    if V.mayWakeSpawner(s) and s:IsShouldToSpawn() and not valid(s.SpawnedAI) then
                         s:ClaimSeqSpawn(false, true, false)
                         count = count + 1
                     end
@@ -671,6 +735,28 @@ return function(api)
     V.unoptimized = {}          -- proxy address -> true while switched off by us
     V.optProxy = {}             -- proxy address -> the proxy, to give its optimizations back
     V.nextOpt = 0
+    function V.acquireOptimization(proxy)
+        if not party then proxy:DisableAllOptimizations();return end
+        party.optimizationHolds=party.optimizationHolds or {}
+        local addr,name=proxy:GetAddress(),proxy:GetFullName()
+        local row=party.optimizationHolds[addr]
+        if not row or row.name~=name then
+            proxy:DisableAllOptimizations()
+            row={name=name,owners={}};party.optimizationHolds[addr]=row
+        end
+        row.owners[slot]=true
+    end
+    function V.releaseOptimization(proxy)
+        if not party then proxy:EnableOptimizations();return end
+        local holds=party.optimizationHolds
+        local addr=proxy:GetAddress();local row=holds and holds[addr]
+        if not row or row.name~=proxy:GetFullName() then return end
+        for owner in pairs(row.owners) do
+            if owner~=slot then row.owners[slot]=nil;return end
+        end
+        -- Keep ownership on failure so the next pass can retry.
+        proxy:EnableOptimizations();holds[addr]=nil
+    end
     local function keepEnemiesAlive(p1, p2)
         if os.clock() < V.nextOpt then
             return
@@ -681,7 +767,7 @@ return function(api)
         local character = StaticFindObject("/Script/Engine.Character")
         for _, proxy in ipairs(FindAllOf("OptimizationProxyComponent") or {}) do
             local ok, owner = pcall(function() return proxy:GetOwner() end)
-            if ok and valid(owner) then
+            if ok and valid(owner) and not V.isEncounterActor(owner) then
                 local okL, loc = pcall(function() return owner:K2_GetActorLocation() end)
                 if okL and loc.X then
                     local addr = proxy:GetAddress()
@@ -694,9 +780,11 @@ return function(api)
                         end
                     end)
                     if not V.unoptimized[addr] and d2 <= V.OPT_NEAR_CM then
-                        pcall(function() proxy:DisableAllOptimizations() end)
-                        V.unoptimized[addr] = true
-                        V.optProxy[addr] = proxy
+                        local ok=pcall(V.acquireOptimization,proxy)
+                        if ok then
+                            V.unoptimized[addr] = true
+                            V.optProxy[addr] = proxy
+                        end
                     end
                     -- (Flowers and such have a proxy too. Asked for a Soul's parts, UE4SS can answer from some class it has seen, and calling into
                     -- what it hands back killed the game beside a Memory Flower.)
@@ -756,8 +844,9 @@ return function(api)
                         end)
                     end
                     if V.unoptimized[addr] and d2 > V.OPT_FAR_CM then
-                        pcall(function() proxy:EnableOptimizations() end)
-                        V.unoptimized[addr], V.optProxy[addr] = nil, nil
+                        if pcall(V.releaseOptimization,proxy) then
+                            V.unoptimized[addr], V.optProxy[addr] = nil, nil
+                        end
                     end
                 end
             end
@@ -773,7 +862,7 @@ return function(api)
     function V.giveBackOptimizations()
         for addr, proxy in pairs(V.optProxy) do
             if valid(proxy) and proxy:GetAddress() == addr then
-                pcall(function() proxy:EnableOptimizations() end)
+                pcall(V.releaseOptimization,proxy)
             end
         end
         V.unoptimized, V.optProxy = {}, {}
@@ -796,7 +885,7 @@ return function(api)
                 if valid(a) then
                     if a:GetAddress() == p2:GetAddress() then
                         listed = listed + 1
-                    elseif not (valid(p1) and a:GetAddress() == p1:GetAddress()) and not game.isDead(a) then
+                    elseif not (valid(p1) and a:GetAddress() == p1:GetAddress()) and V.mayHelpCombat(a) then
                         local okL, loc = pcall(function() return a:K2_GetActorLocation() end)
                         if okL and loc.X then
                             local dist = distance(loc, here)
@@ -837,7 +926,7 @@ return function(api)
             d.ActorsInMobDomain:ForEach(function(_, el)
                 local a = el:get()
                 if valid(a) and a:GetAddress() ~= p1:GetAddress() and a:GetAddress() ~= p2:GetAddress()
-                    and not game.isDead(a) then
+                    and V.mayHelpCombat(a) and not V.isEncounterActor(a) then
                     local addr = a:GetAddress()
                     if not V.armed[addr] or now - V.armed[addr] >= V.ARM_EVERY_S then
                         V.armed[addr] = now
@@ -856,6 +945,10 @@ return function(api)
         end
         V.nextDomain = os.clock() + 0.5
         for _, d in ipairs(FindAllOf("BP_MobDomain_C") or {}) do
+            -- OnTriggerEnteredEvent broadcasts to the entire area, not only the
+            -- ordinary enemy used to choose it. Never synthesize that event for
+            -- a mixed/scripted encounter or replay its per-enemy enter callback.
+            if not V.domainHasEncounter(d) then
             local addr = d:GetAddress()
             local listed, nearest = domainMembers(d, p2, p1)
             if nearest and nearest <= V.DOMAIN_IN_CM and listed == 0
@@ -879,6 +972,7 @@ return function(api)
                 end
                 V.inDomains[addr] = nil
                 log("Player 2 leaves a fight area.")
+            end
             end
         end
     end
@@ -921,7 +1015,7 @@ return function(api)
         for _, e in ipairs(game.listEnemies(true)) do
             pcall(function()
                 local addr = e:GetAddress()
-                if game.isDead(e) or (game.getHealth(e) or 0) <= 0 then
+                if not V.mayHelpCombat(e) or (game.getHealth(e) or 0) <= 0 then
                     V.pointAt(e, addr, false)
                     return
                 end
@@ -996,7 +1090,8 @@ return function(api)
         V.nextPictures = os.clock() + 1.0
         local s1, s2 = nil, nil
         for _, s in ipairs(FindAllOf("CommonInputSubsystem") or {}) do
-            if s:GetOuter().ControllerId == 0 then s1 = s else s2 = s end
+            if s:GetOuter().ControllerId == 0 then s1 = s
+            elseif not party or s:GetOuter().ControllerId == slot - 1 then s2 = s end
         end
         if not (valid(s1) and valid(s2)) then
             return
@@ -1110,6 +1205,7 @@ return function(api)
         if V.layout() == "lr" then
             x, y = vw * 0.75, vh * 0.09
         end
+        if party then x, y = vw * (slot - 0.5) / (party.count or 4), vh * 0.09 end
         local frac = math.max(0, math.min(1, hp / maxHp))
         local fillW = math.max(1, math.floor((V.BOSS_BAR_W - 4) * frac))
         V.bossFrame:SetPositionInViewport({ X = x, Y = y }, false)
@@ -1120,21 +1216,8 @@ return function(api)
         api.hud.show(V.bossFrame, true)
         api.hud.show(V.bossFill, true)
     end
-    local function wakeBosses(p1, p2)
-        for _, boss in ipairs(game.bossActors and game.bossActors() or {}) do
-            local addr = boss:GetAddress()
-            local now = os.clock()
-            if not V.bossArmed[addr] or now - V.bossArmed[addr] >= 10.0 then
-                V.bossArmed[addr] = now
-                pcall(function()
-                    local ai = valid(boss.Controller) and componentOf(boss.Controller, "BP_SGameAIComponent_C") or nil
-                    if ai then
-                        ai:OnActorEnterDomain(p1)
-                    end
-                end)
-            end
-        end
-    end
+    -- Boss phase entry belongs to native encounter scripts. Replaying
+    -- OnActorEnterDomain every 10 seconds can restart an encounter transition.
 
     -- The game builds one HUD, for player 1. Player 2 gets this bar, placed in their view where player 1's sits in theirs.
     local function updateBar()
@@ -1171,6 +1254,10 @@ return function(api)
             left, top = vw * (0.5 + 0.5 * BAR_LEFT), vh * BAR_TOP
         end
         local width, height = vw * BAR_WIDTH, vw * BAR_WIDTH * 16 / 300
+        if party then
+            left, top = vw * (slot - 1 + BAR_LEFT) / (party.count or 4), vh * BAR_TOP
+            width, height = vw * BAR_WIDTH * 2 / (party.count or 4), vw * BAR_WIDTH * 2 / (party.count or 4) * 16 / 300
+        end
         local inner, innerH = width * 296 / 300, height * 12 / 16
         local fill = inner * math.max(0, math.min(1, hp / max))
         barFrame:SetPositionInViewport({ X = left + width / 2, Y = top }, false)
@@ -1249,6 +1336,7 @@ return function(api)
     V.nextMenuKeep = 0
 
     local function tick()
+        if party and not party.ready() then return end
         local pc, p1 = getPlayer1()
         if paused or not valid(p1) then
             return
@@ -1260,6 +1348,7 @@ return function(api)
         end
         local p2 = state.p2Pawn
         if game.isDead(p1) then
+            if party then return end -- partyHostStep owns the one host recovery
             downSince = downSince or os.clock()
             if os.clock() - downSince >= RESPAWN_S then
                 downSince = nil
@@ -1289,11 +1378,16 @@ return function(api)
             state.p2Controller:SetActorTickEnabled(true)
         end
         wireInteract()
-        game.hookMedicine(V.medicineCounted, V.beforeMedicine, V.afterMedicine)
+        if party then
+            party.medicines[slot] = {counted=V.medicineCounted, before=V.beforeMedicine,
+                after=V.afterMedicine, wants=V.player2Drinks}
+        else
+            game.hookMedicine(V.medicineCounted, V.beforeMedicine, V.afterMedicine)
+        end
         pcall(V.hookFeel)
         if not configApplied and not menuOpen then
             configApplied = applyConfig()
-            if configApplied and not V.checklistShown then
+            if configApplied and not V.checklistShown and not party then
                 -- The two-pad setup in one line, once, when player 2 is in.
                 V.checklistShown = true
                 local p1Pad, p2Pad = tostring(config.p1 or "joy1"), tostring(config.p2 or "joy2")
@@ -1346,7 +1440,7 @@ return function(api)
         end
         matchPlayer1(p1, p2)
         -- One after another: each looks through the game's object list, and all in one frame they held it up by 8 ms, once a second.
-        for i, step in ipairs({ wakeEnemies, keepEnemiesAlive, keepDomains, noticePlayer2, wakeBosses }) do
+        for i, step in ipairs({ wakeEnemies, keepEnemiesAlive, keepDomains, noticePlayer2 }) do
             game.after(V.STEP_S * i, function()
                 local _, body = getPlayer1()
                 if not (paused or p2DownSince) and valid(body) and valid(state.p2Pawn) then
@@ -1409,6 +1503,7 @@ return function(api)
     -- main.dll's pad_route.hpp: the device named here is player 1's, and the other joystick reaches player 2. It's given
     -- the viewport and the offset setting once, and both live as long as the game.
     local function routePads(device)
+        if party then return end -- do not overwrite the four-device routing
         if not routeArmed then
             local viewport = FindFirstOf("GameViewportClient")
             local maps = StaticFindObject("/Script/EngineSettings.Default__GameMapsSettings")
@@ -1427,6 +1522,7 @@ return function(api)
     -- Unreal gives the keyboard to ControllerId 0, and the offset setting sends joysticks to ControllerId 1. With two
     -- joysticks the setting stays off and main.dll routes them. Layouts are read by the engine every frame.
     function applyConfig()
+        if party then return true end
         local pc = getPlayer1()
         local p2pc = state.p2Controller
         if not (valid(pc) and valid(p2pc)) then
@@ -1459,6 +1555,7 @@ return function(api)
 
     -- Player 1's monitor in the viewport's units: the whole window, or its first half while it's spread.
     function localcoop.playerOneArea(vw, vh)
+        if party then return 0, 0, vw / (party.count or 4), vh end
         if not V.spread() then
             return 0, 0, vw, vh
         end
@@ -1750,12 +1847,14 @@ return function(api)
     -- A player never leaves because a joystick dropped: their Soul stays, can't lose health, and comes back to them
     -- when the joystick returns or another one claims them.
     local function watchPads()
+        if party and not party.ready() then return end
         local pc, p1 = getPlayer1()
         if not paused and valid(pc) then
             followScene(pc)
         end
         -- (Single player and under the panel too: the window goes back with player 2, and the panel's choice is seen at once.)
-        local okS, errS = pcall(V.watchScreens, pc)
+        local okS, errS = true, nil
+        if not party then okS, errS = pcall(V.watchScreens, pc) end
         if not okS and errS ~= V.lastScreensError then
             V.lastScreensError = errS
             log("Two monitors: " .. tostring(errS))
@@ -1782,7 +1881,7 @@ return function(api)
             api.gs():SetForceDisableSplitscreen(pc, V.fullWidth())      -- (over two monitors, on player 1's monitor)
             holdForScreen(menu)
             if menu then
-                api.setGamepadOffset(false)
+                if not party then api.setGamepadOffset(false) end
                 routePads(ALL_TO_PLAYER_1)
             else
                 applyConfig()
@@ -1803,6 +1902,7 @@ return function(api)
         else
             V.p2StuckSince = nil
         end
+        if party then return end -- setup UI owns disconnects and all assignments
         local pads = localcoop.readPads()
         if not pads then
             return
@@ -1932,13 +2032,46 @@ return function(api)
 
     -- For one call the game's "player 0's body" is player 2's: the controller points there, with no possession, so nobody's move or
     -- input is touched. (A real swap dropped player 1's input sets, and a Soul back from down can come in the middle of a fight.)
+    function V.restoreBorrow()
+        local b = V.borrowed
+        if not b then return true end
+        if not valid(b.pc) or (api.lifecycle and not api.lifecycle.accept(b.epoch)) then
+            V.borrowed = nil
+            return true -- never restore old-world references into a new world
+        end
+        local complete = true
+        for _, field in ipairs({'Pawn','Character'}) do
+            local ok = pcall(function()
+                -- Match 1.7.3: this synchronous borrow MUST return both fields.
+                -- UObject property reads can return a different Lua wrapper; a
+                -- wrapper-equality gate can silently leave P1 pointing at a guest.
+                b.pc[field] = b[field]
+                local restored, expected = b.pc[field], b[field]
+                if restored ~= expected then
+                    assert(valid(restored) and valid(expected)
+                        and restored:GetAddress() == expected:GetAddress(),
+                        'Host controller '..field..' restoration did not stick')
+                end
+            end)
+            if not ok then complete = false end
+        end
+        if complete then V.borrowed = nil end
+        return complete
+    end
     local function asPlayer1(fn)
+        if not V.restoreBorrow() then return false, 'previous controller restore pending' end
         local pc1, p1 = getPlayer1()
-        pc1.Pawn = state.p2Pawn
-        pc1.Character = state.p2Pawn
-        local ok, err = pcall(fn)
-        pc1.Pawn = p1
-        pc1.Character = p1
+        if not (valid(pc1) and valid(p1) and valid(state.p2Pawn)) then return false, 'player unavailable' end
+        local epoch = api.lifecycle and api.lifecycle.token()
+        if epoch == false then return false, 'world loading' end
+        local b = {pc=pc1, Pawn=pc1.Pawn, Character=pc1.Character, guest=state.p2Pawn, epoch=epoch}
+        V.borrowed = b
+        local ok, err = pcall(function()
+            pc1.Pawn = b.guest
+            pc1.Character = b.guest
+            return fn()
+        end)
+        if not V.restoreBorrow() then return false, 'controller restore pending: '..tostring(err) end
         return ok, err
     end
 
@@ -1952,16 +2085,21 @@ return function(api)
             end
         end
         V.hud, V.hudFor, V.hudUp, V.hudBosses, V.pointers = nil, nil, nil, {}, {}
+        V.hpSeen, V.hpRetryAt, V.hpError = nil, nil, nil
+        V.hudRetryAt, V.hudRetryFor = nil, nil
     end
 
     function V.keepHud(pc, p2)
+        if not (valid(pc) and valid(p2) and valid(state.p2Controller)) then return end
+        local address = p2:GetAddress()
         local class = StaticFindObject(V.HUD_CLASS)
-        if not valid(class) or V.hudFor == p2:GetAddress()
+        if not valid(class) or (V.hudFor == address and valid(V.hud))
+            or (V.hudRetryFor == address and os.clock() < (V.hudRetryAt or 0))
             or os.clock() - (V.soulAt or 0) < V.HUD_AFTER_S or api.gs():IsGamePaused(pc) then
             return
         end
         V.dropHud()
-        V.hudFor = p2:GetAddress()      -- (so a failure isn't tried every second, for a Soul that may never take it)
+        V.hudFor = address
         local pc2 = state.p2Controller
         local ok, err = asPlayer1(function()
             local w = StaticFindObject("/Script/UMG.Default__WidgetBlueprintLibrary"):Create(pc2, class, pc2)
@@ -1972,6 +2110,12 @@ return function(api)
             w:AddToPlayerScreen(5)
             w:ActivateWidget()
         end)
+        if not ok then
+            -- A load/activation failure is temporary, not a successful binding.
+            -- Remove a partially created widget and retry at most every 3 seconds.
+            V.dropHud()
+            V.hudRetryFor, V.hudRetryAt = address, os.clock() + 3
+        end
         log(ok and "Player 2 has a HUD of their own." or ("Player 2's HUD: " .. tostring(err)))
     end
 
@@ -1992,17 +2136,28 @@ return function(api)
         if up and p2Charges then
             pcall(function() V.hud.WB_quickslot.BottomMedicineNum:SetText(FText(tostring(p2Charges))) end)
         end
+        if up and valid(state.p2Pawn) then V.hudHealth(state.p2Pawn) end
     end
 
     -- Health written by hand tells nobody, so the bar is told, and comes up as it does for a real change.
     function V.hudHealth(p2)
+        -- Bind updates to this HUD's pawn, never FindFirstOf(PBZHUDLayout) or host health.
+        if not valid(p2) or not valid(V.hud) or V.hudFor ~= p2:GetAddress() then return false end
+        if os.clock() < (V.hpRetryAt or 0) then return false end
         local hp, max = game.getHealth(p2)
-        if valid(V.hud) and hp and max then
-            pcall(function()
-                V.hud:ForSeq_UpdatePlayerHP(hp / max)
-                V.hud["Need To Show"](V.hud)
-            end)
+        if type(hp)~='number' or type(max)~='number' or hp~=hp or max~=max
+            or math.abs(hp)==math.huge or max==math.huge or max<=0 then return false end
+        local last=V.hpSeen
+        if last and last.pawn==p2:GetAddress() and last.hp==hp and last.max==max then return true end
+        local ok,err=pcall(function() V.hud:ForSeq_UpdatePlayerHP(math.max(0,math.min(1,hp/max))) end)
+        if not ok then
+            V.hpRetryAt=os.clock()+1
+            if V.hpError~=tostring(err) then V.hpError=tostring(err);log('Partner HUD health retry: '..V.hpError) end
+            return false
         end
+        V.hpSeen={pawn=p2:GetAddress(),hp=hp,max=max};V.hpRetryAt=nil;V.hpError=nil
+        if V.hudUp==true then pcall(function() V.hud["Need To Show"](V.hud) end) end
+        return true
     end
 
     -- A HUD told of a boss adds a bar to player 1's half whichever HUD is told, and makes nothing in its own. So player 2's bars are
@@ -2325,7 +2480,11 @@ return function(api)
 
     -- An interaction puts the Soul's input in a mode of its own, with its control sets taken off, and only player 1's is ever put back:
     -- player 2 stood at the chest with a dead pad.
+    function V.releaseUse()
+        if api.releaseInteraction then api.releaseInteraction() end
+    end
     function V.endUse()
+        V.releaseUse()
         local soul = state.p2Pawn
         if valid(soul) then
             pcall(function() soul.PBZNBInput:ResetToDefaultInputMode() end)
@@ -2338,17 +2497,31 @@ return function(api)
     function V.afterUseStep()
         local pc1, p1 = V.usePc, V.useBody
         if pc1 then
-            V.usePc, V.useBody = nil, nil
-            pc1.Pawn = p1
-            pc1.Character = p1
+            if not valid(pc1) then
+                V.usePc, V.useBody, V.useOriginal = nil, nil, nil
+                return
+            end
+            local original = V.useOriginal or {Pawn=p1, Character=p1}
+            local complete = true
+            for _, field in ipairs({'Pawn','Character'}) do
+                local ok = pcall(function()
+                    pc1[field] = original[field]
+                    local restored, expected = pc1[field], original[field]
+                    assert(restored == expected or (valid(restored) and valid(expected)
+                        and restored:GetAddress() == expected:GetAddress()), 'Door controller restore rejected')
+                end)
+                if not ok then complete = false end
+            end
+            -- Keep the record on failure; watchOpening retries both fields.
+            if not complete then error('Door controller restore pending') end
+            V.usePc, V.useBody, V.useOriginal = nil, nil, nil
         end
     end
     function V.hookUse()
         if V.useHooked then
             return
         end
-        V.useHooked = true
-        RegisterHook(V.FINISH_WALK, function(self)
+        local before = function(self)
             local pc1, p1 = getPlayer1()
             -- (Only the thing player 2 is using: player 1 pulling a lever of their own in those seconds had it played on
             -- player 2's body.)
@@ -2357,10 +2530,18 @@ return function(api)
             pcall(function() mine = valid(thing) and self:get():GetAddress() == thing:GetAddress() end)
             if mine and not V.opening.chest and not V.usePc and valid(pc1) and valid(p1) and valid(state.p2Pawn) then
                 V.usePc, V.useBody = pc1, p1
+                V.useOriginal = {Pawn=pc1.Pawn, Character=pc1.Character}
                 pc1.Pawn = state.p2Pawn
                 pc1.Character = state.p2Pawn
             end
-        end, V.afterUseStep)
+        end
+        if api.hookInteraction then
+            api.hookInteraction(V.FINISH_WALK, before, V.afterUseStep)
+        else
+            RegisterHook(V.FINISH_WALK, before, V.afterUseStep)
+        end
+        -- RegisterHook can fail while the class is not ready. Only latch success.
+        V.useHooked = true
     end
 
     function V.useAsTheirs(pawn, thing)
@@ -2368,15 +2549,27 @@ return function(api)
         if not ic then
             return
         end
-        pcall(V.hookUse)
-        pcall(function() ic:CheckAndForceEndInteract() end)
-        local took = nil
-        local ok, err = asPlayer1(function() took = ic:DoInteract(thing) end)
-        -- (Still busy with the last one it says no.)
-        if took == false then
+        local hookOk, hookError = pcall(V.hookUse)
+        if not hookOk then
+            log("Partner interaction deferred: " .. tostring(hookError))
             return
         end
         local name = thing:GetClass():GetFName():ToString()
+        -- One native interaction owns a door until its original cleanup completes.
+        if api.claimInteraction and not api.claimInteraction(thing) then return end
+        pcall(function() ic:CheckAndForceEndInteract() end)
+        local took = nil
+        local ok, err = asPlayer1(function() took = ic:DoInteract(thing) end)
+        if not ok then
+            V.releaseUse()
+            log("Partner interaction failed: " .. tostring(err))
+            return
+        end
+        -- (Still busy with the last one it says no.)
+        if took == false then
+            V.releaseUse()
+            return
+        end
         log("Player 2 opens " .. name .. (ok and "" or (": " .. tostring(err))))
         if name == "BP_Rubbish_C" then          -- (a chest says it's open itself, and a lever or a door can be used again)
             usedSwitches[thing:GetAddress()] = true
@@ -2391,7 +2584,13 @@ return function(api)
     end
 
     function V.watchOpening()
-        V.afterUseStep()        -- (it has always run by now: this is for a call that ended some other way)
+        -- Normally the native post already restored P1, as in 1.7.3. A failed
+        -- property write must retry rather than silently ending the only watcher.
+        local restored = pcall(V.afterUseStep)
+        if not restored then
+            game.after(V.WATCH_STEP_S, function() pcall(V.watchOpening) end)
+            return
+        end
         local o = V.opening
         local pc1, p1 = getPlayer1()
         local pc2, soul = state.p2Controller, state.p2Pawn
@@ -2462,6 +2661,7 @@ return function(api)
             return
         end
         V.closeUp = nil
+        V.releaseUse()
         local pc2, soul = state.p2Controller, state.p2Pawn
         if valid(pc2) and valid(soul) then
             pc2:SetViewTargetWithBlend(soul, 0.4, 0, 0, false)
@@ -2920,6 +3120,11 @@ return function(api)
             x, y = vw * 0.75, vh * PROMPT_Y
             left, top = vw * 0.5, 0
         end
+        local right = vw
+        if party then
+            left, top, right = vw * (slot - 1) / (party.count or 4), 0, vw * slot / (party.count or 4)
+            x, y = (left + right) / 2, vh * PROMPT_Y
+        end
         local at = {}
         local spot = V.promptAnchor(target or promptTarget)
         local ok = spot and pcall(function()
@@ -2927,7 +3132,7 @@ return function(api)
         end)
         if ok and at.X and at.Y then
             local ax, ay = at.X / scale, at.Y / scale
-            if ax > left + PROMPT_SIZE and ax < vw - PROMPT_SIZE and ay > top + PROMPT_SIZE and ay < vh - PROMPT_SIZE then
+            if ax > left + PROMPT_SIZE and ax < right - PROMPT_SIZE and ay > top + PROMPT_SIZE and ay < vh - PROMPT_SIZE then
                 return ax, ay, spot
             end
         end
@@ -3223,6 +3428,7 @@ return function(api)
     end
 
     local function relayButtons()
+        if party and not party.ready() then return end
         local pc = getPlayer1()
         local p2pc = state.p2Controller
         drawPrompt(pc)
@@ -3271,6 +3477,11 @@ return function(api)
         if on then
             return
         end
+        if party then
+            on, paused, configApplied = true, false, true
+            config = {players=tostring(party.count or 4), monitors=party.count or 4, layout="lr", p1="joy1", p2="joy"..slot}
+            V.checklistShown = true
+        else
         config.monitors = tonumber(monitors) == 2 and 2 or 1
         os.remove(api.modDir() .. "screens.txt")       -- (main.dll's: a run that crashed spread leaves "two" behind)
         on = true
@@ -3287,6 +3498,8 @@ return function(api)
         end
         api.panel.start()
         log(string.format("Local co-op on: %d joystick(s).", joysticks))
+        end
+        if party then log("Upstream partner lifecycle started for player "..slot) end
         -- A map change (Return to Title Screen, Load Game, a chapter's level travel) with a second local player still
         -- in leaves the next map without its UI: the title screen came up black in testing. Before the engine loads
         -- the next map, player 2 steps out entirely, as if the game were single player; once the new map is playing,
@@ -3294,6 +3507,11 @@ return function(api)
         pcall(function()
             RegisterLoadMapPreHook(function()
                 local ok, err = pcall(function()
+                    pcall(V.afterUseStep)
+                    pcall(V.releaseUse)
+                    pcall(V.afterMedicine)
+                    V.usePc,V.useBody,V.drinkPc,V.drinkBody=nil,nil,nil,nil
+                    V.useOriginal=nil
                     local had = valid(state.p2Controller)
                     if valid(state.p2Pawn) then
                         local _, p1 = getPlayer1()
@@ -3313,15 +3531,18 @@ return function(api)
                     if valid(pc1) then
                         pcall(function() api.gs():SetPlayerControllerID(pc1, 0) end)
                     end
-                    api.removePlayer2()
+                    -- A failed engine removal must not skip the Lua/UI invalidation below.
+                    local removed, removeError = pcall(api.removePlayer2)
+                    if not removed then log('Map player removal failed: '..tostring(removeError)) end
                     -- (Over two monitors, the window goes back as the game had it for whatever the next map shows one
                     -- player: main.dll moves it as soon as the game takes its window's messages, which a load can hold
                     -- off until it's done. Player 2's return spreads it again.)
                     if config.monitors == 2 then
                         V.wantScreens("one")
                     end
-                    V.dropHud()
-                    V.dropDeathCard()
+                    pcall(V.dropHud)
+                    pcall(V.dropDeathCard)
+                    V.borrowed = nil
                     V.real, V.realUp, V.pointsFor, V.points = nil, false, nil, nil
                     V.lentCharge, V.gourdKeep, V.drinkPc, V.drinkBody, V.opening, V.closeUp = nil, nil, nil, nil, nil, nil
                     V.onBoat, V.sailing, V.atBell = false, false, false
@@ -3343,6 +3564,15 @@ return function(api)
             end)
         end)
         LoopInGameThreadWithDelay(TICK_MS, function()
+            local restored, restoreOk = pcall(V.restoreBorrow)
+            if not restored or not restoreOk then
+                log('Controller restore pending; partner tick deferred')
+                return false
+            end
+            if party and slot == 2 then
+                local ok, err = pcall(localcoop.partyHostStep)
+                if not ok then log("Party recovery: "..tostring(err)) end
+            end
             local ok, err = pcall(tick)
             if not ok then
                 log("Local co-op error: " .. tostring(err))
@@ -3350,6 +3580,7 @@ return function(api)
             return false
         end)
         LoopInGameThreadWithDelay(BAR_MS, function()
+            if party and not party.ready() then return false end
             local ok, err = pcall(function()
                 pcall(giveControlsBack)
                 updateBar()
@@ -3410,5 +3641,159 @@ return function(api)
                 valid(p1) and distance(state.p2Pawn:K2_GetActorLocation(), p1:K2_GetActorLocation()) or 0)) or "not in"))
     end
 
+    -- Read-only readiness contract used by the local companion input producer.
+    -- It shares the original partner's dialogue/death/interaction restrictions.
+    function localcoop.partyAIReady()
+        if not party or not on or paused or party.loading or party.inputLocked or not party.ready() then return false end
+        if menuOpen or inScene or V.sceneHeld or V.screenHeld or V.closeUp or V.opening
+            or V.onBoat or V.sailing or p2DownSince or waiting[2] then return false end
+        local pc,p1=getPlayer1()
+        local pc2,p2=state.p2Controller,state.p2Pawn
+        if not (valid(pc) and valid(p1) and valid(pc2) and valid(p2)) then return false end
+        if p1:GetAddress()==p2:GetAddress() then return false end
+        if api.gs():IsGamePaused(pc) or game.inCutscene() or bellMenuUp() or screenUp() or api.panel.open then return false end
+        if game.isDead(p1) or game.isDead(p2) or (game.getHealth(p2) or 0)<=DOWN_HP then return false end
+        if pc:IsMoveInputIgnored() or pc2:IsMoveInputIgnored() or pc2:IsLookInputIgnored() then return false end
+        local move=p2.CharacterMovement.MovementMode
+        return (move==1 or move==2) and party.connected(slot)
+    end
+    function localcoop.partyAlive()
+        local pawn = state.p2Pawn
+        return not p2DownSince and valid(pawn) and not game.isDead(pawn)
+            and (game.getHealth(pawn) or 0) > DOWN_HP
+            and party.connected(slot)
+    end
+    function localcoop.partyRegroup(checked)
+        local _, p1 = getPlayer1()
+        if not valid(p1) or game.isDead(p1) then return false end
+        -- Optional checked route for new manual/AI requests. The original no-arg
+        -- recovery path below is unchanged, including its death/streaming rules.
+        if checked then
+            local pawn=state.p2Pawn
+            if checked~=V.safeRegroupProof or not valid(pawn) or game.isDead(pawn)
+                or checked.host~=p1:GetAddress() or checked.guest~=pawn:GetAddress() then return false end
+            if pawn:K2_TeleportTo(checked.point,checked.rotation)~=true then return false,'destination_blocked' end
+            pawn.CharacterMovement:StopMovementImmediately()
+            log('Party checked regroup: player '..slot..' followed player 1')
+            return true,'returned'
+        end
+        if not valid(state.p2Pawn) or p2DownSince or game.isDead(state.p2Pawn)
+            or (game.getHealth(state.p2Pawn) or 0) <= DOWN_HP then
+            respawn(p1)
+        end
+        if not valid(state.p2Pawn) then return false end
+        if not moveBeside(state.p2Pawn, p1) then return false,"move_failed" end
+        log("Party regroup: player "..slot.." followed player 1")
+        return true
+    end
+    -- A live partner request never revives, respawns, changes P1, or clears story
+    -- state. Input lock is deliberately not a gate: locked humans retain rescue.
+    function localcoop.partySafeRegroup(reason)
+        if reason~='host_recall' and reason~='manual' and reason~='ai_distance' then return false,'invalid_reason' end
+        if not party or slot<2 or slot>(party.count or 1) or not on or paused
+            or party.loading or not party.ready() then return false,'party_not_ready' end
+        if not party.connected(slot) then return false,'disconnected' end
+        if reason=='ai_distance' and party.inputLocked then return false,'input_locked' end
+        if menuOpen or inScene or V.sceneHeld or V.screenHeld or V.closeUp or V.opening
+            or V.onBoat or V.sailing or p2DownSince or waiting[2] then return false,'interaction_or_respawn' end
+        local pc,p1=getPlayer1()
+        local pc2,p2=state.p2Controller,state.p2Pawn
+        if not(valid(pc)and valid(p1)and valid(pc2)and valid(p2))then return false,'missing_player' end
+        if p1:GetAddress()==p2:GetAddress()then return false,'shared_pawn' end
+        if api.gs():IsGamePaused(pc)or game.inCutscene()or bellMenuUp()or screenUp()or api.panel.open then return false,'menu_or_scene' end
+        if game.isDead(p1)or game.isDead(p2)or(game.getHealth(p1)or 0)<=DOWN_HP
+            or(game.getHealth(p2)or 0)<=DOWN_HP then return false,'dead' end
+        if pc:IsMoveInputIgnored()or pc:IsLookInputIgnored()or pc2:IsMoveInputIgnored()or pc2:IsLookInputIgnored()then return false,'input_ignored' end
+        local hostMode,guestMode=p1.CharacterMovement.MovementMode,p2.CharacterMovement.MovementMode
+        if hostMode~=1 and hostMode~=2 then return false,'host_not_grounded' end
+        if guestMode~=1 and guestMode~=2 and guestMode~=3 then return false,'guest_special_movement' end
+        local hv,gv=p1:GetVelocity(),p2:GetVelocity()
+        local function finite(x)return type(x)=='number'and x==x and math.abs(x)<1e12 end
+        if not(finite(hv.X)and finite(hv.Y)and finite(hv.Z)and finite(gv.Z))then return false,'unknown_velocity' end
+        if hv.X*hv.X+hv.Y*hv.Y>1200^2 or math.abs(hv.Z)>150 then return false,'host_unstable' end
+        if guestMode==3 and math.abs(gv.Z)>150 then return false,'guest_falling' end
+        local lib=StaticFindObject('/Script/Engine.Default__KismetSystemLibrary')
+        if not valid(lib)then return false,'trace_unavailable' end
+        local none={R=0,G=0,B=0,A=0}
+        local function ground(pawn,point,clearance)
+            if not(finite(point.X)and finite(point.Y)and finite(point.Z))then return nil,'unknown_position' end
+            local capsule=pawn.CapsuleComponent
+            if not valid(capsule)then return nil,'capsule_unavailable' end
+            local radius,half=capsule:GetScaledCapsuleRadius(),capsule:GetScaledCapsuleHalfHeight()
+            if not(finite(radius)and finite(half)and radius>0 and half>=radius and half<1000)then return nil,'unknown_capsule' end
+            local hit={}
+            local found=lib:LineTraceSingle(pawn,{X=point.X,Y=point.Y,Z=point.Z+40},
+                {X=point.X,Y=point.Y,Z=point.Z-half-100},0,false,{p1,p2},0,hit,true,none,none,0)
+            if found~=true or not hit.Location or not hit.ImpactNormal then return nil,'no_ground' end
+            local floor,nz=hit.Location.Z,hit.ImpactNormal.Z
+            if not(finite(floor)and finite(nz))or nz<0.75 then return nil,'steep_or_unknown_ground' end
+            if math.abs(point.Z-half-floor)>45 then return nil,'ground_height_changed' end
+            local target={X=point.X,Y=point.Y,Z=floor+half+4}
+            if clearance then
+                local blocked=lib:CapsuleTraceSingle(pawn,target,{X=target.X,Y=target.Y,Z=target.Z+1},
+                    radius+2,half,0,false,{p1,p2},0,{},true,none,none,0)
+                if blocked~=false then return nil,'destination_blocked' end
+            end
+            return target
+        end
+        local hostGround,why=ground(p1,p1:K2_GetActorLocation(),false)
+        if not hostGround then return false,'host_'..why end
+        local target;target,why=ground(p2,besidePoint(p1,0),true)
+        if not target then return false,why end
+        local proof={host=p1:GetAddress(),guest=p2:GetAddress(),point=target,
+            rotation={Pitch=0,Yaw=p2:K2_GetActorRotation().Yaw,Roll=0}}
+        V.safeRegroupProof=proof
+        local ok,done,message=pcall(localcoop.partyRegroup,proof)
+        V.safeRegroupProof=nil
+        if not ok then return false,'regroup_error: '..tostring(done)end
+        return done==true,message or(done and 'returned'or 'regroup_rejected')
+    end
+    function localcoop.partyHostStep()
+        if not party or not party.ready() then return end
+        local pc, p1 = getPlayer1()
+        if not (valid(pc) and valid(p1)) or api.gs():IsGamePaused(pc) or game.inCutscene() then return end
+        local now = os.clock()
+        if game.isDead(p1) then
+            party.regroupPending = true
+            party.downSince = party.downSince or now
+            if now - party.downSince < RESPAWN_S then return end
+            party.downSince = now -- rate-limit a failed/unfinished recovery
+            local survivor
+            for i=2,(party.count or 4) do
+                if party.partners[i] and party.partners[i].partyAlive() then
+                    survivor = party.states[i].p2Pawn; break
+                end
+            end
+            if survivor then
+                revivePlayer1(p1, survivor) -- original two-player recovery steps
+            else
+                log("All four players down: back to the bell.")
+                game.setHealth(p1, fullHealth(p1))
+                p1:Respawn() -- original game bell recovery, never a permanent health floor
+            end
+            party.recoveredAfter = now + V.FAR_MOVE_HOLD_S
+            return
+        end
+        party.downSince = nil
+        local address = p1:GetAddress()
+        if party.hostAddress and address ~= party.hostAddress then party.regroupPending = true end
+        party.hostAddress = address
+        if party.regroupPending then
+            party.recoveredAfter = party.recoveredAfter or now + V.FAR_MOVE_HOLD_S
+            local mode = p1.CharacterMovement.MovementMode
+            if now < party.recoveredAfter or (mode ~= 1 and mode ~= 2) then return end
+            local complete = true
+            for i=2,(party.count or 4) do
+                local peer = party.partners[i]
+                local ok, done = pcall(function() return peer and peer.partyRegroup() end)
+                if not ok or not done then complete = false end
+            end
+            if complete then
+                party.regroupPending, party.recoveredAfter = nil, nil
+                log("Party recovery complete: all three partners followed player 1")
+            end
+        end
+    end
     return localcoop
 end
+

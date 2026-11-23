@@ -35,16 +35,16 @@ return function(api)
 
     -- True if this player has the healing gourd among their medicines; nil if that can't be told yet.
     local function hasGourd(bp)
-        local has, read = false, false
-        pcall(function()
+        local has = false
+        local ok = pcall(function()
             bp.MedicineInfos:ForEach(function(k)
-                read = true
                 if k:get():ToString() == "Hulu" then
                     has = true
                 end
             end)
         end)
-        return has, read
+        if not ok then return nil end
+        return has
     end
 
     local function checkGourd(tries)
@@ -65,7 +65,14 @@ return function(api)
         if not bp then
             return
         end
-        if not hasGourd(bp) then
+        local has = hasGourd(bp)
+        if has == nil then
+            if tries > 1 then
+                game.after(GOURD_AFTER_S, function() checkGourd(tries - 1) end)
+            end
+            return
+        end
+        if not has then
             log("No healing gourd past the prologue (the game's own skip gives none): given, equipped and full.")
             game.giveGourd(true)
         end

@@ -215,13 +215,15 @@ return function(api)
     -- A search of all objects is 1-3 ms: never two in one frame.
     local SEARCH_APART_S = 0.03
     local searchedAt = -1e9
+    -- Native transport is optional; object-search pacing is not. The existing
+    -- game timers already use os.clock() (millisecond resolution on this host).
 
     local function searched()
-        searchedAt = link and link.now() or 0
+        searchedAt = (link and link.now or os.clock)()
     end
 
     local function maySearch()
-        return not link or link.now() - searchedAt >= SEARCH_APART_S
+        return (link and link.now or os.clock)() - searchedAt >= SEARCH_APART_S
     end
 
     -- Enemy ids that are the same on both PCs. Runtime actor names are not (the same placed character was
@@ -3237,7 +3239,7 @@ return function(api)
     local timers = {}
     local schedulerStarted = false
     function game.after(seconds, fn)
-        timers[#timers + 1] = { at = os.clock() + seconds, fn = fn }
+        timers[#timers + 1] = { at = os.clock() + seconds, fn = fn, epoch = api.lifecycle.token() }
         if not schedulerStarted then
             schedulerStarted = true
             LoopInGameThreadWithDelay(16, function()
@@ -3258,7 +3260,8 @@ return function(api)
                         local info = debug.getinfo(t.fn, "S")
                         log("trace timer " .. (tostring(info and info.short_src):match("[^/" .. string.char(92) .. "]*$") or "?") .. ":" .. tostring(info and info.linedefined))
                     end
-                    local ok, err = pcall(t.fn)
+                    local ok, err = true, nil
+                    if api.lifecycle.accept(t.epoch) then ok, err = pcall(t.fn) end
                     if not ok then
                         log("Timer error: " .. tostring(err))
                     end
@@ -4041,22 +4044,26 @@ return function(api)
     local REFRESH_FN = "/Game/PBZContent/Blueprint/BP_GameMode_Build.BP_GameMode_Build_C:Refresh Monster"
     local RESPAWN_REFRESH_FN = "/Game/RenewalContent/Prototypes/Character/BP_RenewalPlayer.BP_RenewalPlayer_C:Respawn Refresh Monster"
     local RESPAWN_WINDOW_S = 3.0
-    local restHooked, refreshing = false, false
+    local restHooked, refreshing = {refresh=false, respawn=false}, false
     local respawnRefreshAt = nil
 
     function game.hookRest(onRest)
-        if restHooked or not valid(StaticFindObject(REFRESH_FN)) then
-            return restHooked
+        if restHooked.refresh and restHooked.respawn then
+            return true
         end
-        if valid(StaticFindObject(RESPAWN_REFRESH_FN)) then
+        if not restHooked.respawn and valid(StaticFindObject(RESPAWN_REFRESH_FN)) then
             local okR, errR = pcall(function()
                 RegisterHook(RESPAWN_REFRESH_FN, function()
                     respawnRefreshAt = os.clock()
                 end)
             end)
+            restHooked.respawn = okR
             if not okR then
                 log("Respawn hook failed (deaths will count as bell rests): " .. tostring(errR))
             end
+        end
+        if restHooked.refresh or not valid(StaticFindObject(REFRESH_FN)) then
+            return restHooked.refresh and restHooked.respawn
         end
         local ok, err = pcall(function()
             RegisterHook(REFRESH_FN, function()
@@ -4073,9 +4080,9 @@ return function(api)
                 end)
             end)
         end)
-        restHooked = ok
+        restHooked.refresh = ok
         log(ok and "Bell/respawn hook ready." or ("Bell hook failed: " .. tostring(err)))
-        return restHooked
+        return restHooked.refresh and restHooked.respawn
     end
 
     -- The other player's world refreshed: this one does too.
@@ -5283,27 +5290,27 @@ return function(api)
     end
 
     -- A drink: the game counts it, then applies it. (localcoop.lua decides whose it is.)
-    local medicineHooked = false
+    local medicineHooks = { counted=false, effect=false }
+    local drunk = nil
     function game.hookMedicine(counted, before, after)
-        if medicineHooked or not valid(StaticFindObject(BACKPACK)) then
-            return
-        end
-        medicineHooked = true
-        local ok, err = pcall(function()
-            local drunk = nil
-            RegisterHook(BACKPACK .. ":UseMedicine", function(_, id)
-                drunk = id:get():ToString()
+        if not valid(StaticFindObject(BACKPACK)) then return false end
+        if not medicineHooks.counted then
+            local ok,err=pcall(function()
+                RegisterHook(BACKPACK .. ":UseMedicine",function(_,id)drunk=id:get():ToString()end)
             end)
-            RegisterHook(BACKPACK .. ":ActivateMedicineGameplayEffect", function()
-                counted(drunk)
-                before()
-            end, function()
-                after()
-            end)
-        end)
-        if not ok then
-            log("Player 2's drinks stay player 1's: " .. tostring(err))
+            medicineHooks.counted=ok
+            if not ok then log('Medicine count hook deferred: '..tostring(err));return false end
         end
+        if not medicineHooks.effect then
+            local ok,err=pcall(function()
+                RegisterHook(BACKPACK .. ":ActivateMedicineGameplayEffect",function()
+                    counted(drunk);before()
+                end,function()after()end)
+            end)
+            medicineHooks.effect=ok
+            if not ok then log('Medicine effect hook deferred: '..tostring(err))end
+        end
+        return medicineHooks.counted and medicineHooks.effect
     end
 
     -- Medicines and accessories have no one way in: the lists themselves are looked at, every few seconds.

@@ -12,7 +12,7 @@
 //                             back again and again: the game in exclusive fullscreen, say)
 //   screens_fake.txt tests: monitors to use instead of the real ones, "x y w h" a line
 #pragma once
-#include "relay.hpp"
+#include "local_io.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -232,6 +232,14 @@ std::string read_want(const std::wstring& path) {
     return got == 1 ? std::string(word) : std::string("?");
 }
 
+Plan plan_four(std::vector<Box> m,int count=4) {
+    if(count<2 || count>4 || m.size()<static_cast<size_t>(count)) return {};
+    std::sort(m.begin(),m.end(),[](const Box&a,const Box&b){return a.x<b.x;});
+    for(int i=1;i<count;i++)
+        if(m[i].x!=m[i-1].x+m[i-1].w || m[i].y!=m[0].y || m[i].w!=m[0].w || m[i].h!=m[0].h) return {};
+    return {true,count==4?"four":count==3?"three":"lr",{m[0].x,m[0].y,m[0].w*count,m[0].h},m[0].w,m[0].h};
+}
+
 DWORD WINAPI watch(void* dir_) {
     const std::wstring dir = *static_cast<std::wstring*>(dir_);
     const std::wstring want_file = dir + L"\\screens.txt", out_file = dir + L"\\screens_out.txt",
@@ -256,7 +264,7 @@ DWORD WINAPI watch(void* dir_) {
             spread_now = false;
             saved = Saved{};
         }
-        if (want != "two" && want != "one") {       // the file gone: the option is off, the window as the game had it
+        if (want != "two" && want != "party2" && want != "three" && want != "four" && want != "one") {
             if (spread_now) put_back(window, saved);
             spread_now = false;
             if (!said.empty()) {
@@ -268,7 +276,7 @@ DWORD WINAPI watch(void* dir_) {
         if (!window) window = game_window();
         std::string state, why = "ok";
         Plan shown;
-        const double now = relay::monotonic();
+        const double now = localio::monotonic();
         if (!window) {
             state = want == "two" ? "none" : "one";
             why = "nowindow";
@@ -295,7 +303,7 @@ DWORD WINAPI watch(void* dir_) {
             // which monitor is home.)
             const RECT from = (saved.kept && box_of(r) == plan.window) ? saved.rect : r;
             const std::vector<Box> mons = monitors(fake_file);
-            const Plan p = plan_for(mons, home_of(mons, from));
+            const Plan p = want=="four" || want=="three" || want=="party2" ? plan_four(mons,want=="four"?4:want=="three"?3:2) : plan_for(mons, home_of(mons, from));
             if (p.ok) {
                 spread(window, p, saved);
                 plan = p;
@@ -316,7 +324,7 @@ DWORD WINAPI watch(void* dir_) {
                 // The monitors as they are now, from where the game had its window: a monitor unplugged, moved or
                 // resized gives a new spread, or none.
                 const std::vector<Box> mons = monitors(fake_file);
-                const Plan p = plan_for(mons, home_of(mons, saved.rect));
+                const Plan p = want=="four" || want=="three" || want=="party2" ? plan_four(mons,want=="four"?4:want=="three"?3:2) : plan_for(mons, home_of(mons, saved.rect));
                 if (!p.ok) {
                     put_back(window, saved);
                     spread_now = false;
@@ -353,7 +361,7 @@ DWORD WINAPI watch(void* dir_) {
                   static_cast<long>(shown.window.w), static_cast<long>(shown.window.h), static_cast<long>(shown.mw),
                   static_cast<long>(shown.mh), why.c_str());
         if (said != line) {
-            relay::write_atomic(out_file, line);
+            localio::write_atomic(out_file, line);
             said = line;
         }
     }

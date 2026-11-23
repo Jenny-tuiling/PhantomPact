@@ -1,12 +1,5 @@
-// main.dll: UE4SS loads it from PBZCoop\dlls because the folder has that file (a C++ mod). It uses nothing from UE4SS:
-// start_mod returns null, so UE4SS treats the mod as not started and never calls into it, and a UE4SS update can't
-// break it unless the loader itself changes. (Measured on Vercadi's 3.0.1 build: start_mod is called twice and
-// uninstall_mod never, so it starts once and ends with the game.)
-//
-// The mod starts the relay through net_start.txt in the mod folder (what to run, key=value lines, removed once taken), and
-// from then on calls straight in here (lua_link.hpp). Two copies of the game on one PC use the instN folder, as the Lua does.
-#include "relay.hpp"
-#include "lua_link.hpp"
+#include "local_io.hpp"
+
 #include "pad_route.hpp"
 #include "screens.hpp"
 
@@ -89,7 +82,7 @@ DWORD WINAPI pads_thread(void*) {
                 pads += on ? 1 : 0;
                 text += !on ? "0\n" : ((s.buttons != 0 || s.left > 64 || s.right > 64) ? "2\n" : "1\n");
             }
-            relay::write_atomic(path, text);
+            localio::write_atomic(path, text);
             route::xinput_pads = pads;
         }
         if (open) {
@@ -106,7 +99,7 @@ DWORD WINAPI pads_thread(void*) {
             ClipCursor(nullptr);
             POINT cursor{};
             if (GetCursorPos(&cursor) && window && ScreenToClient(window, &cursor))
-                relay::write_atomic(mod_dir + L"\\mouse.txt",
+                localio::write_atomic(mod_dir + L"\\mouse.txt",
                                     std::to_string(cursor.x) + " " + std::to_string(cursor.y) + " "
                                         + (down(VK_LBUTTON) ? "1 " : "0 ") + (down(VK_ESCAPE) ? "1 " : "0 ")
                                         + ((down(VK_F4) || down(VK_F5) || down(VK_F6)) ? "1 " : "0 ")   // F6: PvP's page
@@ -119,62 +112,25 @@ DWORD WINAPI pads_thread(void*) {
     }
 }
 
-void run_from(const std::wstring& start_path) {
-    relay::mail.stop = false;   // first: the mod removes the start file, then asks to stop, so neither order can be missed
-    relay::Ini start = relay::read_ini(start_path);
-    DeleteFileW(start_path.c_str());
-    if (start["role"].empty()) return;
-    DeleteFileW((mod_dir + L"\\relay_error.txt").c_str());
-    const std::wstring log_path = mod_dir + L"\\relay_log.txt";
-    relay::write_atomic(log_path, "");
 
-    relay::Options o;
-    o.role = start["role"];
-    o.dir = mod_dir;
-    o.peer = start["peer"];
-    o.transport = start["transport"].empty() ? "udp" : start["transport"];
-    o.version = start["version"].empty() ? "?" : start["version"];
-    o.port = std::atoi(start["port"].c_str());
-    if (o.port <= 0 || o.port > 65535) o.port = 47800;
-    o.ini = mod_dir + L"\\PhantomPact.ini";
-    relay::run(o, [&](const std::string& line) {
-        if (line.rfind("role=", 0) != 0) relay::append_lines(log_path, {line});   // not the status, once a second
-    });
+DWORD WINAPI handshake(void*) {
+ while(true){
+  FILE* f=nullptr;char nonce[100]={};
+  if(_wfopen_s(&f,(mod_dir+L"\\local_base_probe.txt").c_str(),L"rb")==0 && f){fgets(nonce,99,f);fclose(f);}
+  std::string n(nonce);if(!n.empty() && n.size()<90 && n.find_first_not_of("0123456789abcdef-")==std::string::npos)
+   localio::write_atomic(mod_dir+L"\\local_base_native.txt","PBZLOCAL1 "+n+" local-0.1.0");
+  Sleep(100);
+ }
+ return 0;
 }
-
-DWORD WINAPI watch_thread(void*) {
-    const std::wstring start_path = mod_dir + L"\\net_start.txt";
-    while (true) {
-        if (GetFileAttributesW(start_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
-            try {
-                run_from(start_path);
-            } catch (const std::exception& e) {
-                relay::write_atomic(mod_dir + L"\\relay_error.txt", std::string(e.what()) + "\n");
-            }
-        }
-        Sleep(POLL_MS);
-    }
 }
-
-}  // namespace
-
-extern "C" __declspec(dllexport) void* start_mod() {
-    if (InterlockedExchange(&started, 1) == 0) {
-        find_folders();
-        CloseHandle(CreateThread(nullptr, 0, watch_thread, nullptr, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, pads_thread, nullptr, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, route::watch, &mod_dir, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, screens::watch, &mod_dir, 0, nullptr));
-    }
-    return nullptr;
+extern "C" __declspec(dllexport) void* start_mod(){
+ if(InterlockedExchange(&started,1)==0){find_folders();
+  CloseHandle(CreateThread(nullptr,0,pads_thread,nullptr,0,nullptr));
+  CloseHandle(CreateThread(nullptr,0,route::watch,&mod_dir,0,nullptr));
+  CloseHandle(CreateThread(nullptr,0,screens::watch,&mod_dir,0,nullptr));
+  CloseHandle(CreateThread(nullptr,0,handshake,nullptr,0,nullptr));
+ }return nullptr;
 }
-
-extern "C" __declspec(dllexport) void uninstall_mod(void*) {}
-
-BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) {
-        self = instance;
-        DisableThreadLibraryCalls(instance);
-    }
-    return TRUE;
-}
+extern "C" __declspec(dllexport) void uninstall_mod(void*){recoverykeys::shutdown();}
+BOOL WINAPI DllMain(HINSTANCE h,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){self=h;DisableThreadLibraryCalls(h);}return TRUE;}

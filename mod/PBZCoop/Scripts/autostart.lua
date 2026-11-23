@@ -104,6 +104,25 @@ return function(api)
     os.remove(modDir() .. "pads_watch.txt")
     os.remove(modDir() .. "pads_want.txt")      -- left by a crash with a panel open: main.dll would think one still is
     if role == "local" then
+        if tonumber(settings.localplayers) and tonumber(settings.localplayers)>=2 and tonumber(settings.localplayers)<=4 then
+            -- Four-player launch is opt-in for this session only. A later direct
+            -- Steam launch must remain single-player, even if the setup UI closed.
+            local path=modDir().."PhantomPact.ini"
+            local text=readText(path)
+            if text then
+                local lines={}
+                for line in text:gmatch("[^\r\n]+") do
+                    local key=line:match("^%s*([%w_]+)%s*=")
+                    local output=line
+                    if key and key:lower()=="role" then output="Role = Off"
+                    elseif key and key:lower()=="localplayers" then output="LocalPlayers = 1" end
+                    lines[#lines+1]=output
+                end
+                writeText(path,table.concat(lines,"\n").."\n")
+            end
+            api.localfour.start(settings.localinput,tonumber(settings.localplayers))
+            return
+        end
         api.localcoop.start(tonumber(settings.joysticks) or 2, tonumber(settings.monitors) or 1)
         return
     end
@@ -324,3 +343,4 @@ return function(api)
         current = c
     end
 end
+
