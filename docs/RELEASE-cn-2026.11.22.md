@@ -1,12 +1,14 @@
-# 小朋友快乐玩mod 2026.11.22 跨机器测试版（基于 Phantom Pact v1.7.3）
+# 小朋友快乐玩mod：《影之刃零》本地 2–4 人合作（2026.11.22 跨机器测试版）
 
-同机本地 2–4 人合作扩展包，Windows / Steam 版《Phantom Blade Zero》。
+适用于《**影之刃零**》（**Phantom Blade Zero**，S-GAME）Windows / Steam 版的**同一台电脑本地 2–4 人**合作扩展包。
 **这是同一台电脑多屏多人，不是各人一台电脑联网联机。**
 
-- 基础版本：Phantom Pact **v1.7.3**（上游 tag `v1.7.3`）
+- 游戏：《影之刃零》Steam 版，验证版本 build **26367565**（不匹配时安装器会停止，请勿绕过）
+- 基础版本：粉丝模组 Phantom Pact **v1.7.3** — https://github.com/yhsharaf/PhantomPact
+- 本分支：`cn/four-player-local`，= v1.7.3 + 1 个提交 —
+  [对比](https://github.com/Jenny-tuiling/PhantomPact/compare/v1.7.3...cn/four-player-local)
 - 版本号：`2026.11.22-test`
-- 验证环境：Steam build **26367565**（不匹配时安装器会停止，请勿绕过）
-- 压缩包：`小朋友快乐玩mod-2026.11.22-跨机器测试版.zip`（约 20 MB，解压后约 69 MB）
+- 压缩包：`PBZ-KidsCoop-4P-2026.11.22-test.zip`（约 20 MB，解压后约 69 MB）
 
 ## 校验
 
@@ -14,7 +16,9 @@
 
 PowerShell 校验：
 
-    Get-FileHash .\小朋友快乐玩mod-2026.11.22-跨机器测试版.zip -Algorithm SHA256
+     Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-test.zip -Algorithm SHA256
+
+（Release 附件名用纯 ASCII 是为了链接不被截断；解压后目录仍是「小朋友快乐玩mod-2026.11.22-跨机器测试版」。）
 
 ## 安装
 
