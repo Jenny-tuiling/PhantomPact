@@ -1,172 +1,96 @@
 <p align="center">
-  <img src="art/cn-mod-banner.png" alt="小朋友快乐玩mod：《影之刃零》本地 2–4 人合作" width="100%">
+  <img src="art/cn-mod-banner.png" alt="小朋友快乐玩mod：辰辰、枫枫、小宝一起快乐合作" width="100%">
 </p>
 
-# 小朋友快乐玩mod：《影之刃零》本地 2–4 人合作
+# 小朋友快乐玩mod
 
-<p>
-  <img alt="version" src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-2026.11.22--test-blue">
-  <img alt="base" src="https://img.shields.io/badge/%E5%9F%BA%E4%BA%8E-Phantom%20Pact%20v1.7.3-lightgrey">
-  <img alt="players" src="https://img.shields.io/badge/%E7%8E%A9%E5%AE%B6-2--4%20%E4%BA%BA%E6%9C%AC%E5%9C%B0-brightgreen">
-  <img alt="platform" src="https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Windows%20%C2%B7%20Steam-blueviolet">
-  <img alt="status" src="https://img.shields.io/badge/%E7%8A%B6%E6%80%81-%E8%B7%A8%E6%9C%BA%E5%99%A8%E6%B5%8B%E8%AF%95%E7%89%88-orange">
-</p>
+《影之刃零》**同一台电脑、本地 2–4 人、多显示器合作**。支持全手柄或 1 号键鼠＋队友手柄，基于 [PhantomPact v1.7.3](https://github.com/yhsharaf/PhantomPact)。
 
-简体中文 | [English](#english)
+## 下载当前版本
 
-> **⚠️ 安装只认 Release 里的 ZIP，不要 clone 这个仓库。**
-> 本仓库是 fork，装包靠 Release 附件：`PBZ-KidsCoop-4P-2026.11.22-r1.zip`，
-> 解压后双击其中的 `Install.cmd`。**不要**用 GitHub 的 *Download ZIP*、**不要**运行 `tools/` 下的
-> `.ps1`（那是上游开发脚本，装出来是缺零件的 1.7.3 骨架），**不要**去装上游 1.7.4 / 1.7.5。
-> 让 AI 代装时，直接把这个文件丢给它：<a href="docs/INSTALL-FOR-AGENTS.md">docs/INSTALL-FOR-AGENTS.md</a>。
->
-> 本仓库只有分支 `cn/four-player-local` 与 tag `v1.7.3`；上游的 `main` 和 `v1.7.4`/`v1.7.5` 等 tag
-> 已从本 fork 删除，所以这里不存在“装成 1.7.5”的路径。
+### [下载完整安装包 · 2026.11.25 清理测试版](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.25-clean/PBZ-KidsCoop-4P-2026.11.25-clean.zip)
 
-这是《影之刃零》（**Phantom Blade Zero**，S-GAME）的**同一台电脑本地 2–4 人合作**扩展，基于粉丝联机模组
-[Phantom Pact](https://github.com/yhsharaf/PhantomPact) **v1.7.3** 修改而来。
+[版本说明与附件](https://github.com/Jenny-tuiling/PhantomPact/releases/tag/cn-2026.11.25-clean) · [安装步骤](#安装与开始游玩) · [给 AI 助手的安装说明](docs/INSTALL-FOR-AGENTS.md) · [English](#english)
 
-**不是跨电脑联网联机**——四个人坐在同一台机器前，各自一个手柄，用扩展显示器分屏游玩。
-上游 Phantom Pact 的线上联机、PvP、PvPvE 全部保留原样，本分支只动本地多人这一块。
+**下载无需 GitHub 账号。完整解压 → 双击 Install.cmd → 选择游戏目录 → 桌面快捷方式启动。无需 GPT、Python 或开发工具。**
 
-**直接下载：**[PBZ-KidsCoop-4P-2026.11.22-r1.zip](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.22-r1/PBZ-KidsCoop-4P-2026.11.22-r1.zip) （20.1 MB，r1 修复构建）·
-**全部版本：**[Releases](https://github.com/Jenny-tuiling/PhantomPact/releases) ·
-**安装：**[安装与游玩](#快速开始) ·
-**与上游的差异：**[对比 v1.7.3](https://github.com/Jenny-tuiling/PhantomPact/compare/v1.7.3...cn/four-player-local) ·
-**上游项目：**[yhsharaf/PhantomPact](https://github.com/yhsharaf/PhantomPact)
+请下载上面的安装包。GitHub 的 **Code → Download ZIP** 和 Release 自动生成的 **Source code** 是仓库源码，不是完整安装包。
 
-## 这是什么
+## 安装与开始游玩
 
-《影之刃零》原本没有本地多人。上游 Phantom Pact 做了线上双人联机，并在 1.7.x 试验了本地分屏；
-本分支把本地这条路推到 **2/3/4 人**：每人一套独立输入、一次手柄绑定、一个复活点，AI 可以接管缺席的队友。
+1. 在 Windows 上从 Steam 正常安装并启动过《影之刃零》。本版只支持 **Steam build 26367565**；安装器会校验游戏版本，不匹配会停止。
+2. 备份自己的 `ProjectPBZ/Saved/SaveGames`，保存并退出游戏及设备设置页。已安装其它多人版本时，先按原包方式卸载，不要直接混装。
+3. 将 `PBZ-KidsCoop-4P-2026.11.25-clean.zip` **完整解压到普通文件夹**，不要在压缩软件内运行。
+4. 双击 `Install.cmd`，选择包含 `platform` 和 `ProjectPBZ` 的 **PBZ 游戏根目录**。Steam → 游戏属性 → 已安装文件 → 浏览，可以找到这个位置。
+5. 安装成功后，桌面会创建 **小朋友快乐玩mod - 多人设备设置** 快捷方式。下载 ZIP 本身不会创建快捷方式。
+6. 显示器在 Windows 中设为扩展显示。打开快捷方式，开启多人模式，选择 **2 / 3 / 4 人**及键鼠／手柄组合；不开启多人则保持单人。
+7. 按设置页提示，各玩家依次按自己手柄 **A** 加入。已绑定设备不必每次重绑，断线重连保持玩家分配；更换设备使用对应玩家的“更换手柄”。摇杆偏移时点卡片顶部 **归中校准**，松开两根摇杆约 4 秒。
+8. 选择皮肤、完成设备检查，再点击启动并进入自己的存档。
 
-同一个包里带两个底座，安装后在设置页切换（切换前必须退出游戏）：
+## 包含什么
 
-| 底座 | 内容 | 用途 |
+- **完整安装包**：设置程序、运行模块、既有补丁、安装／卸载器和中文指导，不必另找旧补丁。
+- **独立输入与校准**：键鼠＋手柄、全手柄、A 键认领、常驻归中校准、断线重连保留分配。
+- **队友 AI**：2、3、4 号独立开关及状态显示；主动关闭或重启游戏才清除托管意愿，死亡／传送等中断后继续。
+- **合作工具**：队友归队、主机召回、操作锁定、安全脱困、视角恢复，以及全员临时无敌＋10 倍伤害开关。
+- **五种外观**：魂主角、辰辰、小宝、猪八戒、枫枫；自定义皮肤保留哑光和拒绝场景贴花处理。
+- **可切换底座**：默认本地测试底座，以及 **1.7.3＋既有补丁**；退出游戏后在设置页切换。
+
+本包不含游戏本体、个人存档、手柄绑定或校准数据。临时增强默认关闭，接收电脑需设置自己的设备。
+
+## 常用手柄操作
+
+L3／R3＝按下左／右摇杆，LT／RT＝左／右扳机。长按触发后松开，再按才能再次触发。
+
+| 玩家 | 操作 | 组合键 |
 |---|---|---|
-| `local`（默认安装） | 1.7.3 + 最近两轮本地多人修复 | 日常游玩 |
-| `stable` | 稳定版 1.7.3 + 既有补丁 | 出问题时回退 |
+| 2、3、4 号各自 | 开启／关闭 AI 托管 | L3＋RT 按住 4 秒 |
+| 1 号 | 锁定／解锁队友操作 | L3＋RT 按住 3 秒 |
+| 1 号 | 召回全部队友 | R3＋LT 按住 3 秒 |
+| 1 号 | 安全脱困 | L3＋R3 按住 3 秒 |
+| 2、3、4 号各自 | 回到 1 号身边 | L3＋R3 按住 3 秒 |
 
-## 功能
+键鼠快捷键及恢复视角说明见设置页的按键说明和游戏工具。
 
-**本分支新增（本地多人）**
+## 版本范围与已知问题
 
-- 2 / 3 / 4 人同机合作，P2–P4 各自独立的输入路由，四套手柄互不串键
-- 手柄绑定与摇杆**归中校准**：设备归属会保持，换设备点“更换手柄”，摇杆漂移点“归中校准”（松手约 4 秒）
-- **AI 托管**：队友按 L3+RT 4 秒开关；只主动关闭或重启游戏才退出托管，中断后会继续。2/3/4 号可各自独立开关
-- 1 号专用：L3+RT 锁定/解锁队友操作，R3+LT 召回全部队友，L3+R3 安全脱困
-- 复活点修正与安全复活落点；唯一门交互拥有者、嵌套回调修正、控制器归还失败重试
-- 皮肤：原始魂、辰辰、小宝、猪八戒、枫枫
-- 设置页重写（C# WinForms）：多人开关、人数与输入组合、逐人绑定/校准、选皮肤、设备检查、启动游戏
-- 游戏工具：全员无敌 + 10 倍伤害（每次启动默认关闭）
-- 安装器 / 卸载器：装前备份到游戏根目录 `FourPlayerBackups`，安装后被改动的文件不覆盖
+**当前为 2026.11.25 清理测试版（回退基线）。** 它保留之前的合作补丁，未包含已撤回的“队友复活输入修正”实验补丁。
 
-**上游 Phantom Pact v1.7.3 已有（本分支未改动）**
+- 队友复活可能打断 1 号当前动作，仍未修复。
+- 多人穿行地图仍有光标／选点问题；庞镇切图尚未实测通过。
+- 同时喝药归属、缺席路由、安全复活落点及复杂交互仍有待验证风险。
+- 猪八戒、枫枫尚未完成全部动作和场景验收。AI 已在制作机测试，其它机器仍需验证。
 
-- 线上双人联机：共享敌人、首领血条、战利品与尘、钟旁会合
-- PvP 决斗 / 死斗 / PvPvE（F6）
-- 游戏中 F5 联机面板、F4 分屏面板
-- 中文 / English / العربية 三语界面
+已完成设置页 183 项检查、隔离安装／卸载 8 项检查、双底座切换检查及 104 个 Lua 编译检查；打包核对 649 项安装载荷哈希与 ZIP 完整性。这些结果不等于全地图通关或所有电脑稳定性保证。详见包内测试方法与已知问题。
 
-## 下载与校验
+## 文件校验
 
 | 项目 | 值 |
 |---|---|
-| 附件 | `PBZ-KidsCoop-4P-2026.11.22-r1.zip`（修复构建 r1） |
-| 大小 | 21,116,405 字节（20.14 MB），解压后约 69 MB |
-| SHA256 | `178abf5c95c50fba2b3f54a63fc326a1acd5e1dd07b160f2f944b242c4deaaa1` |
+| 文件 | `PBZ-KidsCoop-4P-2026.11.25-clean.zip` |
+| 大小 | **20,410,963 字节**（约 19.47 MiB） |
+| SHA256 | `587042642b5105d97f7a20b1a69b67c4a011311ebce414cbda5220dce13c2700` |
 
-下载后先核对（PowerShell）：
+[下载 SHA256 校验文件](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.25-clean/PBZ-KidsCoop-4P-2026.11.25-clean.sha256)。解压目录名为“小朋友快乐玩mod-2026.11.25-清理测试版”。
 
-    Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-r1.zip -Algorithm SHA256
+## 卸载与排障
 
-附件名是 ASCII，是为了下载链接不被聊天软件截断；解压出来的目录名仍是「小朋友快乐玩mod-2026.11.22-跨机器测试版」。
+退出游戏和设置页，运行同一完整解压目录内的 `Uninstall.cmd`，选择同一游戏根目录。切换过底座时先切回安装时的本地底座。卸载器遇到安装后修改的文件会停止，保留当前文件和游戏根目录 `FourPlayerBackups` 备份再核对；不要强行删除备份或游戏存档。
 
-## 快速开始
+报告问题时提供：游戏 build、所选底座、人数、输入组合、复现步骤和相关错误日志。不要公开个人存档或账号信息。
 
-1. 在 Steam 正常安装并**启动过一次**《影之刃零》，确认版本为 **build 26367565**（不匹配时安装器会停止，别绕过）。
-2. 保存并退出游戏，关掉所有设备设置页。
-3. 把 Release 里的 ZIP **完整解压**到普通文件夹，不要直接在压缩包里运行。
-4. 双击 `Install.cmd`，选择游戏根目录（含 `platform` 与 `ProjectPBZ` 那层，Steam → 属性 → 已安装文件 → 浏览）。
-5. 等“安装完成”。安装器会备份原文件，并在桌面创建「小朋友快乐玩mod - 多人设备设置」快捷方式。
-6. 打开该快捷方式：勾选开启多人，选 2/3/4 人与输入组合；显示器先在 Windows 设成**扩展显示**。
-7. 各玩家依次按自己手柄 **A** 加入；绑定会保持，不必每次重绑。
-8. 选皮肤 → 完成设备检查 → 点击启动。游戏从 Steam 正常启动，进自己的存档。
+## 源码与来源
 
-## 按键
+**当前成品的对应源码、安装清单和验证记录均在上方完整安装附件中。** 仓库分支保留开发历史，不能把分支源码 ZIP 当成本版完整安装镜像。基础版本固定为 PhantomPact **v1.7.3**，请勿混入其它版本的 DLL 或脚本。
 
-`L3`/`R3` = 按下左/右摇杆，`LT`/`RT` = 左/右扳机。触发后松开再按。
+PhantomPact 基础来自 [yhsharaf/PhantomPact](https://github.com/yhsharaf/PhantomPact)；运行依赖包括 UE4SS 及适用组件。实际来源、原始说明及适用许可见安装包内“组件来源.txt”“原作者说明”和组件目录。现有来源声明保留，不给整个组合包附加虚构统一许可。
 
-| 操作 | 按键 | 谁 |
-|---|---|---|
-| AI 托管开关 | 按住 L3 + RT 4 秒 | 队友（各自） |
-| 锁定 / 解锁队友操作 | 按住 L3 + RT 3 秒 | 1 号 |
-| 召回全部队友 | 按住 R3 + LT 3 秒 | 1 号 |
-| 安全脱困（其他人回到 1 号身边） | 按住 L3 + R3 3 秒 | 1 号 |
-
-完整键鼠操作与恢复视角说明在设置页「按键说明」和「游戏工具」。
-
-## 已知问题
-
-- 穿行地图在多人下仍有**光标 / 选点问题**，未宣称修复。
-- 庞镇切图尚未实测通过；同时喝药归属、缺席路由、安全复活落点仍有风险。
-- 猪八戒、枫枫的资源和构建已检查，游戏内**全部动作与场景尚未验收**。
-- AI 在制作机上实测通过，新机器 / 其他游戏版本需自行验证。
-- 本包**不含作者存档、手柄绑定和校准数据**，请用自己电脑的备份存档。
-
-## 版本与兼容
-
-- 基础版本：Phantom Pact **v1.7.3**；上游已到 v1.7.4 / v1.7.5，**不要拿本包的脚本混装 1.7.5**
-- 游戏：Steam **build 26367565** 已验证；其他版本安装器会拦
-- 与其它版本的多人模组**不要混装**，已装旧版请先按原包方式卸载
-- 安装前建议备份 `ProjectPBZ/Saved/SaveGames`
-
-## 卸载
-
-退出游戏与设置页，双击 `Uninstall.cmd`，选择同一游戏根目录。恢复安装前文件并移除桌面入口；备份在 `FourPlayerBackups`。
-卸载器遇到安装后被改动的文件会停止并提示路径（保护行为），按提示处理，不要强删备份。保留该解压目录直到卸载完成。
-
-## 基本原则
-
-- **不绕过 DRM。** 不碰 Denuvo，不修改游戏可执行文件；一切都通过 UE4SS 加载，运行在正版游戏之内。
-- 每位玩家都需要拥有自己的《影之刃零》。
-- 本仓库只有源码；**不包含任何游戏文件或素材**。
-
-## 仓库结构
-
-    mod/PBZCoop/Scripts/          本地合作核心（改自上游 + localfour / party_ai / party_controls 等）
-    mod/PBZPartyPower/Scripts/    队伍能力扩展
-    mod/PBZWardrobe/Scripts/      皮肤与演出模块
-    native/                       原生层（four_route / party_input / screens / main_dll）
-    native/tests/                 原生层单元测试
-    tools/four-player-setup/      设备设置页（C# WinForms）
-    docs/                         发布说明、上游沟通草稿
-
-本分支 = 上游 `v1.7.3` + 若干提交（见 [对比](https://github.com/Jenny-tuiling/PhantomPact/compare/v1.7.3...cn/four-player-local)）。
-构建产物（DLL、安装器、皮肤资源）不进版本库，只作为 Release 附件分发。
-
-> **哪些文件不是本分支的：** `INSTALL.md`、`INSTALL.zh-CN.md`、`main` 分支、`v1.x` 系列 tag，以及 `docs/` 里
-> 除 `RELEASE-cn-2026.11.22.md`、`UPSTREAM-OUTREACH.md` 之外的文档，都是上游原件，讲的是**线上联机 / PvP**。
-> 本地多人的安装、按键与排障，一律以本页为准。
-
-## 致谢
-
-- **[yhsharaf](https://github.com/yhsharaf)**：Phantom Pact 本体。本分支的全部基础都来自他——本地分屏、输入系统、
-  皮肤管线、三语界面：https://github.com/yhsharaf/PhantomPact
-- **Vercadi**：制作了 UE4SS for Phantom Blade Zero，让这款游戏的模组制作成为可能
-- **UE4SS 团队**（[RE-UE4SS](https://github.com/UE4SS-RE/RE-UE4SS)）：运行时框架，MIT
-- 皮肤管理器组件与第三方许可：见成品包内 `PartySetup/第三方致谢.txt`、`PartySetup/第三方许可/`、`原作者说明/`
-- **S-GAME 及《影之刃零》开发者**：游戏本体
-
-*玩家自制修改版，非官方作品，与 S-GAME 及上游作者无隶属或背书关系。喜欢的话，请先支持原作者。*
+这是玩家制作的非官方扩展，与 S-GAME 及上游作者无隶属或背书关系。
 
 ## English
 
-Local 2–4 player co-op for **Phantom Blade Zero** (S-GAME) on **one machine** — multi-pad, multi-monitor.
-Built on [Phantom Pact](https://github.com/yhsharaf/PhantomPact) **v1.7.3** by yhsharaf; this branch is
-that tag plus one commit. Not networked co-op: the upstream online/relay path is untouched.
+Local **2–4 player co-op on one Windows PC**, with multiple monitors and controllers, based on PhantomPact **v1.7.3**. This release focuses on local play; it is not a cross-PC multiplayer installer.
 
-Adds per-player input routing for P2–P4, a WinForms pad bind/calibrate setup page, per-slot AI takeover,
-revive-point fixes, and two skins. Installer ships as the release ZIP (Windows, Steam build 26367565).
-Unofficial fan build; not affiliated with S-GAME or the upstream author. Binaries are release assets only —
-this repository holds source.
+[Download the complete 2026.11.25 installer ZIP](https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.25-clean/PBZ-KidsCoop-4P-2026.11.25-clean.zip). Extract everything, close the game and setup app, then run `Install.cmd` and select the PBZ root directory. A desktop setup shortcut is created after successful installation. Requires Steam build **26367565**; no GPT or developer tools needed.
+
+Includes five appearances: Soul, Chenchen, Xiaobao, Zhu Bajie and Fengfeng. The withdrawn experimental revive-input patch is excluded. Teammate revival can still interrupt player 1; travel-map cursor and some progression paths remain known risks. See the bundled installation guide, source and testing notes.
