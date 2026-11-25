@@ -10,18 +10,18 @@
 1. 只下载这一个文件（不要 `git clone`，不要用 GitHub 的 Download ZIP）：
 
    ```
-   https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.22-r1/PBZ-KidsCoop-4P-2026.11.22-r1.zip
+   https://github.com/Jenny-tuiling/PhantomPact/releases/download/cn-2026.11.25-clean/PBZ-KidsCoop-4P-2026.11.25-clean.zip
    ```
 
 2. 校验大小与 SHA256（不匹配就停下来，不要继续）：
 
    ```
-   大小     21,116,482 字节
-   SHA256   60def7bf35a2c53baeb3009db37bf0d47628d80d9ed05c6731f286a02879b3e6
+   大小     20,410,963 字节
+   SHA256   587042642b5105d97f7a20b1a69b67c4a011311ebce414cbda5220dce13c2700
    ```
 
-   PowerShell：`Get-FileHash .\PBZ-KidsCoop-4P-2026.11.22-r1.zip -Algorithm SHA256`
-   Linux/macOS：`sha256sum PBZ-KidsCoop-4P-2026.11.22-r1.zip`
+   PowerShell：`Get-FileHash .\PBZ-KidsCoop-4P-2026.11.25-clean.zip -Algorithm SHA256`
+   Linux/macOS：`sha256sum PBZ-KidsCoop-4P-2026.11.25-clean.zip`
 
 3. 解压到一个普通文件夹（不要解压进游戏目录，不要在压缩包里运行）。
 
@@ -44,7 +44,7 @@
 - ❌ 运行仓库里 `tools/` 下的任何 `.ps1`（那是上游 Phantom Pact 的开发脚本，装不全）
 - ❌ 从 `yhsharaf/PhantomPact` 或 Nexus 装 1.7.4 / 1.7.5 —— 本包基点是 **1.7.3**，混装会坏
 - ❌ 在已有其它版本多人模组的机器上直接覆盖安装（先按原包方式卸载）
-- ❌ 修改 `payload\` 里的任何文件后再安装（安装器会校验 686 个文件的 SHA256）
+- ❌ 修改 `payload\` 里的任何文件后再安装（安装器会校验 649 个文件的 SHA256）
 
 ## 装完之后
 
